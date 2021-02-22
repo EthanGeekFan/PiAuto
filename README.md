@@ -85,7 +85,7 @@ To do that, you may execute the following commands in your server terminal that 
 ```shell
 $ git clone git@github.com:Binaryify/NeteaseCloudMusicApi.git
 $ # OR with HTTPS:
-$ git clone https://
+$ git clone https://github.com/Binaryify/NeteaseCloudMusicApi.git
 $ npm install
 ```
 
