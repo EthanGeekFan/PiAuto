@@ -1,0 +1,243 @@
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+
+class Source {
+  String name;
+}
+
+class Song {
+  String url;
+  String name;
+  Duration duration;
+  String author;
+  String albumPicture;
+
+  Song({
+    this.url,
+    this.name,
+    this.author,
+    this.albumPicture,
+  });
+}
+
+class PlayList {
+  List<Song> _playlist;
+  int _currentIndex;
+
+  PlayList({List<Song> songs}) {
+    this._playlist = [];
+    this._currentIndex = 0;
+    if (songs != null) {
+      this._playlist.addAll(songs);
+    }
+  }
+
+  Future<void> loadData() async {
+    Future.delayed(Duration(seconds: 1));
+    var newSong1 = new Song(
+      url:
+          "http://isure.stream.qqmusic.qq.com/C400000PcSos12VDrz.m4a?guid=11566075&vkey=878F33EE88C83B0704913A3688C361DD3FFFF3ABA46CBB2820A7927A30BC96C611145F7C29271C6731EA097C373C8966CBC839E5914E2A42&uin=0&fromtag=66",
+      name: "刚刚好",
+      author: "薛之谦",
+      albumPicture:
+          "http://y.gtimg.cn/music/photo_new/T002R800x800M000000dcZ9I1nzO62.jpg",
+    );
+    var newSong2 = new Song(
+      url:
+          "https://isure.stream.qqmusic.qq.com/C400000gzdrr3cuFl4.m4a?guid=11566075&vkey=44E00336784A6DB8F2559ED27C05D2DB3BC77CD0B3123CFCCA905A2CB58E6790D91FE20F7CD405E64E9E4AF7E9E8308B76BB0D35DB6F5FAE&uin=0&fromtag=66",
+      name: "Why Would I Ever",
+      author: "Paula DeAnda",
+      albumPicture:
+          "https://y.gtimg.cn/music/photo_new/T002R800x800M000002cviCC1JL6UQ.jpg?",
+    );
+    var newSong3 = new Song(
+      url:
+          "https://ws.stream.qqmusic.qq.com/C400003EcmKX41tKxF.m4a?guid=11566075&vkey=55FEA31CD4A78C1DB440395CF785B6D4390FC1C8E17665D4E95D22E01E603A9189A7B6360F2EE0535D5C5DF5299615D92F0236EA61909BE7&uin=0&fromtag=66",
+      name: "Now You",
+      author: "GJan",
+      albumPicture:
+          "https://y.gtimg.cn/music/photo_new/T002R800x800M000003w9zgM3rwDl9.jpg",
+    );
+    this._playlist.add(newSong1);
+    this._playlist.add(newSong2);
+    this._playlist.add(newSong3);
+    return;
+  }
+
+  void addAll(List<Song> songs) {
+    _playlist.addAll(songs);
+  }
+
+  void add(Song song) {
+    _playlist.add(song);
+  }
+
+  void addNext(Song song) {
+    _playlist.insert(_currentIndex + 1, song);
+  }
+
+  void clearList() {
+    _playlist.clear();
+    _currentIndex = 0;
+  }
+
+  Song removeAt(int rmIndex) {
+    if (rmIndex >= 0) {
+      // Found object
+      if (rmIndex < _currentIndex) {
+        _currentIndex -= 1;
+      } else if (rmIndex == _currentIndex) {
+        return null;
+      }
+      return _playlist.removeAt(rmIndex);
+    } else {
+      return null;
+    }
+  }
+
+  bool remove(Song song) {
+    int rmIndex = _playlist.indexOf(song);
+    if (rmIndex >= 0) {
+      // Found object
+      if (rmIndex < _currentIndex) {
+        _currentIndex -= 1;
+      } else if (rmIndex == _currentIndex) {
+        return false;
+      }
+      return _playlist.remove(song);
+    } else {
+      return false;
+    }
+  }
+
+  // Called by MusicPlayer
+  Song next() {
+    if (this.hasNext()) {
+      _currentIndex += 1;
+      return _playlist[_currentIndex];
+    } else {
+      return null;
+    }
+  }
+
+  // Called by MusicPlayer
+  Song previous() {
+    if (this.hasPrevious()) {
+      _currentIndex -= 1;
+      return _playlist[_currentIndex];
+    } else {
+      return null;
+    }
+  }
+
+  Song current() {
+    if (_currentIndex >= 0 && _currentIndex < _playlist.length) {
+      return _playlist[_currentIndex];
+    } else {
+      return null;
+    }
+  }
+
+  bool hasPrevious() {
+    return _currentIndex > 0 && _currentIndex < _playlist.length;
+  }
+
+  bool hasNext() {
+    return _currentIndex < _playlist.length - 1 && _currentIndex >= 0;
+  }
+}
+
+class MusicPlayer with ChangeNotifier {
+  AudioPlayer player;
+  PlayList playList;
+  Song nowPlaying;
+
+  MusicPlayer({List<Song> songs}) {
+    this.player = new AudioPlayer();
+    this.player.setReleaseMode(ReleaseMode.STOP);
+    this.playList = new PlayList(songs: songs);
+    this.nowPlaying = playList.current();
+    if (nowPlaying != null) {
+      this.player.setUrl(nowPlaying.url);
+      player.getDuration();
+    }
+    player.onPlayerCompletion.listen((event) {
+      if (this.hasNext()) {
+        this.next();
+      } else {
+        this.pause();
+      }
+    });
+    loadPlayList();
+  }
+
+  void loadPlayList() {
+    playList.loadData().then(
+      (value) {
+        if (nowPlaying == null) {
+          this.nowPlaying = this.playList.current();
+          if (nowPlaying != null) {
+            this.player.setUrl(nowPlaying.url);
+            player.getDuration();
+          }
+          notifyListeners();
+        }
+      },
+    );
+  }
+
+  void play() async {
+    int result;
+    if (player.state == AudioPlayerState.PAUSED) {
+      result = await player.resume();
+    } else if (player.state == AudioPlayerState.STOPPED ||
+        player.state == AudioPlayerState.COMPLETED) {
+      await player.setUrl(nowPlaying?.url ?? "");
+      result = await player.resume();
+    } else if (player.state == AudioPlayerState.PLAYING) {
+      result = await player.pause();
+    } else {
+      result = await player.resume();
+    }
+    if (result != 1) {
+      // Fail
+    }
+  }
+
+  void pause() async {
+    int result = await player.pause();
+    if (result != 1) {
+      // Fail
+    }
+  }
+
+  void next() async {
+    await player.stop();
+    this.nowPlaying = playList.next();
+    notifyListeners();
+    if (nowPlaying != null) {
+      await this.player.setUrl(nowPlaying.url);
+      player.getDuration();
+    }
+    this.play();
+  }
+
+  void prev() async {
+    await player.stop();
+    this.nowPlaying = playList.previous();
+    notifyListeners();
+    if (nowPlaying != null) {
+      await this.player.setUrl(nowPlaying.url);
+      player.getDuration();
+    }
+    this.play();
+  }
+
+  bool hasNext() {
+    return this.playList.hasNext();
+  }
+
+  bool hasPrev() {
+    return this.playList.hasPrevious();
+  }
+}

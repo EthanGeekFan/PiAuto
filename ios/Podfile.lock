@@ -1,0 +1,80 @@
+PODS:
+  - AMapFoundation (1.6.5.1)
+  - AMapNavi (7.8.0):
+    - AMapFoundation (~> 1.6.5)
+  - AMapSearch (7.8.0):
+    - AMapFoundation (~> 1.6.4)
+  - audio_service (0.0.1):
+    - Flutter
+  - audio_session (0.0.1):
+    - Flutter
+  - Flutter (1.0.0)
+  - flutter_isolate (0.0.1):
+    - Flutter
+  - FMDB (2.7.5):
+    - FMDB/standard (= 2.7.5)
+  - FMDB/standard (2.7.5)
+  - just_audio (0.0.1):
+    - Flutter
+  - path_provider (0.0.1):
+    - Flutter
+  - sqflite (0.0.2):
+    - Flutter
+    - FMDB (>= 2.7.5)
+  - volume_watcher (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - AMapNavi
+  - AMapSearch
+  - audio_service (from `.symlinks/plugins/audio_service/ios`)
+  - audio_session (from `.symlinks/plugins/audio_session/ios`)
+  - Flutter (from `Flutter`)
+  - flutter_isolate (from `.symlinks/plugins/flutter_isolate/ios`)
+  - just_audio (from `.symlinks/plugins/just_audio/ios`)
+  - path_provider (from `.symlinks/plugins/path_provider/ios`)
+  - sqflite (from `.symlinks/plugins/sqflite/ios`)
+  - volume_watcher (from `.symlinks/plugins/volume_watcher/ios`)
+
+SPEC REPOS:
+  trunk:
+    - AMapFoundation
+    - AMapNavi
+    - AMapSearch
+    - FMDB
+
+EXTERNAL SOURCES:
+  audio_service:
+    :path: ".symlinks/plugins/audio_service/ios"
+  audio_session:
+    :path: ".symlinks/plugins/audio_session/ios"
+  Flutter:
+    :path: Flutter
+  flutter_isolate:
+    :path: ".symlinks/plugins/flutter_isolate/ios"
+  just_audio:
+    :path: ".symlinks/plugins/just_audio/ios"
+  path_provider:
+    :path: ".symlinks/plugins/path_provider/ios"
+  sqflite:
+    :path: ".symlinks/plugins/sqflite/ios"
+  volume_watcher:
+    :path: ".symlinks/plugins/volume_watcher/ios"
+
+SPEC CHECKSUMS:
+  AMapFoundation: b67560a6f21aab81c8c12f84616b55a3833b6253
+  AMapNavi: ce659052825437090becd14c3bbd5a71b88fcafe
+  AMapSearch: a62d0b2508270dff5a9b05ba3af9fc8843b48c8a
+  audio_service: f509d65da41b9521a61f1c404dd58651f265a567
+  audio_session: 4f3e461722055d21515cf3261b64c973c062f345
+  Flutter: 0e3d915762c693b495b44d77113d4970485de6ec
+  flutter_isolate: 0edf5081826d071adf21759d1eb10ff5c24503b5
+  FMDB: 2ce00b547f966261cd18927a3ddb07cb6f3db82a
+  just_audio: baa7252489dbcf47a4c7cc9ca663e9661c99aafa
+  path_provider: abfe2b5c733d04e238b0d8691db0cfd63a27a93c
+  sqflite: 6d358c025f5b867b29ed92fc697fd34924e11904
+  volume_watcher: 2f6fd21a69a6e3b4d1c199e28ba0c68f01327332
+
+PODFILE CHECKSUM: 209b51303866efdbd892b3add41f9abce7958989
+
+COCOAPODS: 1.10.1
