@@ -20,7 +20,7 @@ import AMapSearchKit
     GeneratedPluginRegistrant.register(with: self)
 
     // Configure your API Key here
-    AMapServices.shared()?.apiKey = ""
+    AMapServices.shared()?.apiKey = "f3ea289093262c9d627e2c1d37225fb1"
     
     AMapServices.shared()?.enableHTTPS = true
     
