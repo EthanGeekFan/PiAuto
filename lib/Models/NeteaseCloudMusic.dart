@@ -8,9 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pi_auto/Configurations/NeteaseCloudMusicConfig.dart';
 import 'package:pi_auto/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NeteaseCloudMusicModel with ChangeNotifier {
   bool _loggedin = false;
+  bool loginInProgress = false;
+
+  bool qrLoginInProgress = false;
 
   set loggedin(bool value) {
     _loggedin = value;
@@ -20,44 +24,113 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   bool get loggedin => _loggedin;
 
   Dio dio = Dio();
-  PersistCookieJar cookieJar;
-  Directory docDir;
-  bool cookieManagerInited = false;
+  Future<PersistCookieJar> cookieJar;
 
   NeteaseCloudMusicModel() {
-    initCookieManager();
-    login();
+    cookieJar = initCookieManager();
+    autoLogin();
   }
 
-  Future<void> initCookieManager() async {
-    docDir = await getApplicationDocumentsDirectory();
-    cookieJar = new PersistCookieJar(
+  Future<PersistCookieJar> initCookieManager() async {
+    var docDir = await getApplicationDocumentsDirectory();
+    var jar = new PersistCookieJar(
       dir: docDir.path + "/.cookies/",
-      ignoreExpires: true,
+      ignoreExpires: false,
     );
-    dio.interceptors.add(CookieManager(cookieJar));
-    cookieManagerInited = true;
+    dio.interceptors.add(CookieManager(jar));
+    var c = jar.loadForRequest(Uri.parse(NeteaseCloudMusicConfig.rootUrl));
+    print(c);
+    c = jar
+        .loadForRequest(Uri.parse(NeteaseCloudMusicConfig.cellphoneLoginUrl));
+    print("c2:");
+    print(c);
+    return jar;
   }
 
-  Future<bool> login() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
+  Future<bool> hasCookie() async {
+    var result = false;
+    for (var item in (await cookieJar).domains) {
+      for (var entry in item.entries) {
+        print(entry.key);
+        if (entry.key == NeteaseCloudMusicConfig.hostname) {
+          result = true;
+        }
+      }
     }
+    return result;
+  }
+
+  Future<bool> autoLogin() async {
+    print("autoLogin");
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (await hasCookie()) {
+      var storedUid = prefs.getInt("uid");
+      if (storedUid == null) {
+        // needs login
+        // loggedin = false;
+        // return false;
+        print("null id");
+      } else {
+        print('read uid');
+        NeteaseCloudMusicConfig.uid = storedUid;
+        NeteaseCloudMusicConfig.username = prefs.getString("username");
+        print("storedUid: " +
+            storedUid.toString() +
+            " " +
+            prefs.getString("username"));
+      }
+      refreshLogin();
+      print("login refresh complete");
+      loggedin = true;
+      return true;
+    }
+    // needs login
+    return false;
+  }
+
+  Future<bool> loginWithPhonePwd(String phone, String pwd) async {
+    loginInProgress = true;
+    await cookieJar;
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.cellphoneLoginUrl;
-    Response<Map> response = await dio.get(url);
+    // (await cookieJar).delete(Uri.parse(NeteaseCloudMusicConfig.rootUrl));
+    (await cookieJar).deleteAll();
+    Response<Map> response = await dio.get(
+      url,
+      queryParameters: {
+        "phone": phone,
+        "password": pwd,
+      },
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
+      print(jsonResponse);
+
       bool success = jsonResponse["code"] == 200;
       if (success) {
         var account = jsonResponse["account"];
         if (account == null) {
           // not logged in
           loggedin = false;
+          loginInProgress = false;
           return false;
         }
+        (await cookieJar).saveFromResponse(
+            Uri.parse(NeteaseCloudMusicConfig.rootUrl),
+            [Cookie.fromSetCookieValue(jsonResponse["cookie"])]);
+        // print((await cookieJar)
+        //     .loadForRequest(Uri.parse(NeteaseCloudMusicConfig.rootUrl)));
         var uid = account["id"];
-        print("Login uid: " + uid.toString());
+        var username = jsonResponse["profile"]["nickname"];
+        NeteaseCloudMusicConfig.uid = uid;
+        NeteaseCloudMusicConfig.username = username;
         loggedin = true;
       } else {
         print("login not successful");
@@ -66,16 +139,205 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     } else {
       print('Request failed with status: ${response.statusCode}.');
     }
+    loginInProgress = false;
     return loggedin;
   }
 
-  Future<bool> loginStatus() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
+  Future<bool> getCaptcha(String phone) async {
+    await cookieJar;
+    var url = NeteaseCloudMusicConfig.sendCaptchaUrl;
+    Response<Map> response = await dio.get(
+      url,
+      queryParameters: {
+        "phone": phone,
+      },
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  Future<bool> loginWithPhoneCaptcha(String phone, String captcha) async {
+    loginInProgress = true;
+    await cookieJar;
+    var cookie = await hasCookie();
+    if (cookie) {
+      var refresh = await refreshLogin();
+      loginInProgress = false;
+      return refresh;
     }
     int t = new DateTime.now().millisecondsSinceEpoch;
+    var url = NeteaseCloudMusicConfig.captchaLoginUrl;
+    Response<Map> response = await dio.get(
+      url,
+      queryParameters: {
+        "phone": phone,
+        "captcha": captcha,
+      },
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      var jsonResponse = response.data;
+      bool success = jsonResponse["code"] == 200;
+      if (success) {
+        var account = jsonResponse["account"];
+        if (account == null) {
+          // not logged in
+          loggedin = false;
+          loginInProgress = false;
+          return false;
+        }
+        var uid = account["id"];
+        NeteaseCloudMusicConfig.uid = uid;
+        print("Login uid: " + NeteaseCloudMusicConfig.uid.toString());
+        loggedin = true;
+      } else {
+        print("login not successful");
+        loggedin = false;
+      }
+    } else {
+      print('Request failed with status: ${response.statusCode}.');
+    }
+    loginInProgress = false;
+    return loggedin;
+  }
+
+  Future<String> loginWithQR() async {
+    loginInProgress = true;
+    await cookieJar;
+    var cookie = await hasCookie();
+    if (cookie) {
+      var refresh = await refreshLogin();
+      loginInProgress = false;
+    }
+
+    // Generate QR Key:
+    String key = "";
+    var url = NeteaseCloudMusicConfig.qrKeyGenUrl;
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      var jsonResponse = response.data["data"];
+      bool success = jsonResponse["code"] == 200;
+      if (success) {
+        key = jsonResponse["unikey"];
+      } else {
+        print("qrKeyGen not successful");
+        loginInProgress = false;
+        return null;
+      }
+    } else {
+      print('Request failed with status: ${response.statusCode}.');
+      loginInProgress = false;
+      return null;
+    }
+
+    // Create QR Code:
+    String base64QR;
+    url = NeteaseCloudMusicConfig.qrCreateUrl;
+    response = await dio.get(
+      url,
+      queryParameters: {
+        "key": key,
+        "qrimg": true,
+      },
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      var jsonResponse = response.data;
+      bool success = jsonResponse["code"] == 200;
+      if (success) {
+        var data = jsonResponse["data"];
+        base64QR = data["qrimg"];
+      } else {
+        print("qrKeyCreate not successful");
+      }
+    } else {
+      print('Request failed with status: ${response.statusCode}.');
+    }
+    loginInProgress = false;
+    qrLoginInProgress = true;
+    qrLoginStatusCheck(key).then((value) => qrLoginInProgress = false);
+    return base64QR;
+  }
+
+  Future<void> qrLoginStatusCheck(String key) async {
+    var status = 801;
+    while (status != 800) {
+      Future.delayed(Duration(milliseconds: 500));
+      var url = NeteaseCloudMusicConfig.qrStatusUrl;
+      Response<Map> response = await dio.get(
+        url,
+        queryParameters: {
+          "key": key,
+        },
+        options: Options(
+          headers: {
+            "xhrFields": {
+              "withCredentials": true,
+            },
+          },
+        ),
+      );
+      if (response.statusCode == 200) {
+        var jsonResponse = response.data;
+        status = jsonResponse["code"] as int;
+        if (status == 803) {
+          break;
+        }
+      } else {
+        print('Request failed with status: ${response.statusCode}.');
+        return;
+      }
+    }
+    print('login successfull');
+    loggedin = true;
+    return;
+  }
+
+  Future<bool> loginStatus() async {
+    await cookieJar;
+    int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.loginStatusUrl;
-    Response response = await dio.get(url);
+    Response response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["data"]["code"] == 200;
@@ -102,38 +364,56 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<bool> refreshLogin() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    print("refreshLogin");
+    await cookieJar;
     int t = new DateTime.now().millisecondsSinceEpoch;
-    var url = NeteaseCloudMusicConfig.refreshLoginUrl + "?t=" + t.toString();
-    Response<Map> response = await dio.get(url);
+    var url =
+        NeteaseCloudMusicConfig.refreshLoginUrl + "?timestamp=" + t.toString();
+    // (await cookieJar).loadForRequest(Uri.parse(url));
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
       if (success) {
-        loggedin = true;
+        print("login refreshed");
       } else {
-        print("not logged in");
-        loggedin = false;
+        print("refresh failed");
+        return false;
       }
     } else {
-      print('Request failed with status: ${response.statusCode}.');
+      print('refresh failed with status: ${response.statusCode}.');
     }
     return loggedin;
   }
 
   Future<bool> logout() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
     int t = new DateTime.now().millisecondsSinceEpoch;
-    var url = NeteaseCloudMusicConfig.logoutUrl + "?t=" + t.toString();
-    Response<Map> response = await dio.get(url);
+    var url = NeteaseCloudMusicConfig.logoutUrl + "?timestamp=" + t.toString();
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
       if (success) {
+        NeteaseCloudMusicConfig.uid = null;
         loggedin = false;
         return true;
       }
@@ -143,15 +423,32 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return false;
   }
 
+  // Login
   Future<List<PlaylistPreview>> fetchUserPlaylists() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
+    var retryCount = 0;
     if (!loggedin) {
-      await login();
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
+    }
+    if (NeteaseCloudMusicConfig.uid == null) {
+      print('userplaylist without uid: ${NeteaseCloudMusicConfig.uid}');
+      return [];
     }
     var url = NeteaseCloudMusicConfig.userPlaylistsUrl;
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -183,11 +480,18 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<Playlist> fetchPlaylistDetail(String id) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
     var url = NeteaseCloudMusicConfig.playlistDetailUrl + id;
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -237,9 +541,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<Map<String, String>> parseSongsUrl(List<String> ids) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
     var url = NeteaseCloudMusicConfig.songUrlUrl;
     for (var i = 0; i < ids.length; i++) {
       url += ids[i];
@@ -247,7 +549,16 @@ class NeteaseCloudMusicModel with ChangeNotifier {
         url += ",";
       }
     }
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -279,9 +590,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<List<Song>> fetchSongsDetail(List<String> ids) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
     var url = NeteaseCloudMusicConfig.songDetailUrl;
     for (var i = 0; i < ids.length; i++) {
       url += ids[i];
@@ -289,7 +598,16 @@ class NeteaseCloudMusicModel with ChangeNotifier {
         url += ",";
       }
     }
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -335,11 +653,18 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<bool> checkSongAvailability(String id) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
     var url = NeteaseCloudMusicConfig.checkAvailabilityUrl + id;
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool available =
@@ -353,19 +678,29 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return false;
   }
 
+  // Login
   Future<List<PlaylistPreview>> fetchDailyRecommendedPlaylists() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
-    // if (!loggedin) {
-    //   await login();
-    // }
+    await cookieJar;
+    var retryCount = 0;
     if (!loggedin) {
-      print("Not loggedin. This action requires login");
-      // return null;
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
     }
     var url = NeteaseCloudMusicConfig.fetchDailyRecommendedPlaylistsUrl;
-    Response<Map> response = await dio.get(url);
+    // print((await cookieJar).loadForRequest(Uri.parse(url)));
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -397,19 +732,28 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return null;
   }
 
+  // Login
   Future<List<Song>> fetchDailyRecommendedSongs() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
+    await cookieJar;
+    var retryCount = 0;
     if (!loggedin) {
-      await login();
-    }
-    if (!loggedin) {
-      print("Not loggedin. This action requires login");
-      // return null;
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
     }
     var url = NeteaseCloudMusicConfig.fetchDailyRecommendedSongsUrl;
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -449,19 +793,28 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return null;
   }
 
+  // Login
   Future<List<Song>> fetchPersonalFM() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
-    }
-    // if (!loggedin) {
-    //   await login();
-    // }
+    await cookieJar;
+    var retryCount = 0;
     if (!loggedin) {
-      print("Not loggedin. This action requires login");
-      // return null;
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
     }
     var url = NeteaseCloudMusicConfig.fetchPersonalFMUrl;
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -506,19 +859,32 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return null;
   }
 
+  // Login
   Future<bool> likeSong(String id, {bool like}) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
+    await cookieJar;
+    var retryCount = 0;
+    if (!loggedin) {
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
     }
-    // if (!loggedin) {
-    //   await login();
-    // }
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.likeSongUrl + id + "&t=$t";
     if (like != null) {
       url += "&like=" + like.toString();
     }
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -531,15 +897,31 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return false;
   }
 
+  // Login
   Future<List<String>> fetchUserLikelist() async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
+    await cookieJar;
+    if (NeteaseCloudMusicConfig.uid == "") {
+      return [];
     }
-    // if (!loggedin) {
-    //   await login();
-    // }
+    var retryCount = 0;
+    if (!loggedin) {
+      Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
+    }
     var url = NeteaseCloudMusicConfig.fetchUserLikelistUrl;
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -564,18 +946,31 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return null;
   }
 
+  // Login
   Future<List<PlaylistPreview>> fetchRecommendedPlaylists({int limit}) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
+    await cookieJar;
+    var retryCount = 0;
+    if (!loggedin) {
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
     }
-    // if (!loggedin) {
-    //   await login();
-    // }
     var url = NeteaseCloudMusicConfig.fetchRecommendedPlaylistUrl;
     if (limit != null) {
       url += "?limit=" + limit.toString();
     }
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -607,21 +1002,34 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     return null;
   }
 
+  // Login
   Future<List<Song>> intelligenceMode(String songId, String playlistId,
       {String startId}) async {
-    if (!cookieManagerInited) {
-      await initCookieManager();
+    await cookieJar;
+    var retryCount = 0;
+    if (!loggedin) {
+      await Future.doWhile(() {
+        Future.delayed(Duration(seconds: 1));
+        retryCount += 1;
+        return !loggedin && retryCount <= 30;
+      });
     }
-    // if (!loggedin) {
-    //   await login();
-    // }
     var url = NeteaseCloudMusicConfig.intelligenceModeUrl;
     url += songId;
     url += "&pid=" + playlistId;
     if (startId != null) {
       url += "&sid=" + startId;
     }
-    Response<Map> response = await dio.get(url);
+    Response<Map> response = await dio.get(
+      url,
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
       bool success = jsonResponse["code"] == 200;
@@ -782,10 +1190,15 @@ class NeteaseCloudMusicClient with ChangeNotifier {
   List<PlaylistPreview> get recommendedPlaylists => _recommendedPlaylists;
 
   NeteaseCloudMusicClient() {
-    neteaseCloudMusicModel.login();
-    updateRecommendedPlaylists();
-    updateDailyRecommendedPlaylists();
-    updateUserPlaylists();
+    startServices();
+  }
+
+  void startServices() async {
+    // await neteaseCloudMusicModel.autoLogin();
+    neteaseCloudMusicModel.addListener(() {
+      fetchPageData();
+    });
+    await fetchPageData();
     this._userLikeListUpdater = Timer.periodic(
       Duration(minutes: 2),
       (timer) {
@@ -798,6 +1211,13 @@ class NeteaseCloudMusicClient with ChangeNotifier {
   void dispose() {
     this._userLikeListUpdater.cancel();
     super.dispose();
+  }
+
+  Future<void> fetchPageData() async {
+    print("Fetching data");
+    await updateRecommendedPlaylists();
+    await updateDailyRecommendedPlaylists();
+    await updateUserPlaylists();
   }
 
   Future<void> updateRecommendedPlaylists() async {

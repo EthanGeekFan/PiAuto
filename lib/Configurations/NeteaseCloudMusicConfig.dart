@@ -1,12 +1,35 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 class NeteaseCloudMusicConfig {
-  static const String phone = "";
-  static const String password = "";
-  static String uid = "";
+  // static const String phone = "";
+  // static const String password = "";
+  static int _uid;
+  static set uid(int val) {
+    _uid = val;
+    var prefs = SharedPreferences.getInstance();
+    prefs.then((value) => value.setInt("uid", val));
+  }
+
+  static int get uid => _uid;
+  static String _username = "";
+  static String get username => _username;
+  static set username(String val) {
+    _username = val;
+    var prefs = SharedPreferences.getInstance();
+    prefs.then((value) => value.setString("username", val));
+  }
+
   static const String hostname = "ethan.local";
   static const String port = "3000";
 
-  static String get cellphoneLoginUrl =>
-      "http://$hostname:$port/login/cellphone?phone=$phone&password=$password";
+  static const String rootUrl = "http://$hostname:$port/";
+  static const String cellphoneLoginUrl =
+      "http://$hostname:$port/login/cellphone";
+  static const String sendCaptchaUrl = "http://$hostname:$port/captcha/sent";
+  static const String captchaLoginUrl = "http://$hostname:$port/captcha/verify";
+  static const String qrKeyGenUrl = "http://$hostname:$port/login/qr/key";
+  static const String qrCreateUrl = "http://$hostname:$port/login/qr/create";
+  static const String qrStatusUrl = "http://$hostname:$port/login/qr/check";
   static const String loginStatusUrl = "http://$hostname:$port/login/status";
   static const String refreshLoginUrl = "http://$hostname:$port/login/refresh";
   static const String logoutUrl = "http://$hostname:$port/logout";

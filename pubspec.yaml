@@ -36,6 +36,7 @@ dependencies:
   path_provider: ^1.6.27
   flip_card: ^0.4.4
   flappy_search_bar: ^1.7.2
+  shared_preferences: ^0.5.12+4
 
 
   # The following adds the Cupertino Icons font to your application.
