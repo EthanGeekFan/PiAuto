@@ -97,7 +97,9 @@ $ npm start
 For more customization of the server, see [its website](https://binaryify.github.io/NeteaseCloudMusicApi/).
 
 
-### Configure the server info and account credentials
+### Configure the server info and account credentials(`v0.1.0`)
+
+> **For version v0.1.1 or above, you can skip this section**
 
 After you have set up your local API server, you may begin to configure the code in order to make it connect to the server and login as expected.
 
