@@ -35,7 +35,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     var docDir = await getApplicationDocumentsDirectory();
     var jar = new PersistCookieJar(
       dir: docDir.path + "/.cookies/",
-      ignoreExpires: false,
+      ignoreExpires: true,
     );
     dio.interceptors.add(CookieManager(jar));
     var c = jar.loadForRequest(Uri.parse(NeteaseCloudMusicConfig.rootUrl));
@@ -93,7 +93,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     await cookieJar;
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.cellphoneLoginUrl;
-    // (await cookieJar).delete(Uri.parse(NeteaseCloudMusicConfig.rootUrl));
+    (await cookieJar).delete(Uri.parse(NeteaseCloudMusicConfig.rootUrl));
     (await cookieJar).deleteAll();
     Response<Map> response = await dio.get(
       url,
@@ -122,9 +122,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
           loginInProgress = false;
           return false;
         }
-        (await cookieJar).saveFromResponse(
-            Uri.parse(NeteaseCloudMusicConfig.rootUrl),
-            [Cookie.fromSetCookieValue(jsonResponse["cookie"])]);
+        // (await cookieJar).saveFromResponse(
+        //     Uri.parse(NeteaseCloudMusicConfig.rootUrl),
+        //     [Cookie.fromSetCookieValue(jsonResponse["cookie"])]);
         // print((await cookieJar)
         //     .loadForRequest(Uri.parse(NeteaseCloudMusicConfig.rootUrl)));
         var uid = account["id"];
@@ -1194,7 +1194,6 @@ class NeteaseCloudMusicClient with ChangeNotifier {
   }
 
   void startServices() async {
-    // await neteaseCloudMusicModel.autoLogin();
     neteaseCloudMusicModel.addListener(() {
       fetchPageData();
     });

@@ -91,7 +91,10 @@ class MusicPlayerTask extends BackgroundAudioTask {
         return;
       }
       // var duration = _myPlaylist.current()?.duration;
-      var duration = player.duration;
+      var duration = player?.duration;
+      if (duration == null) {
+        return;
+      }
       if (position >= duration) {
         await onSkipToNext();
       }
