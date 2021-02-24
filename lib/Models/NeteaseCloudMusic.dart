@@ -1276,6 +1276,7 @@ class NeteaseCloudMusicClient with ChangeNotifier {
     await updateRecommendedPlaylists();
     await updateDailyRecommendedPlaylists();
     await updateUserPlaylists();
+    await updateUserLikeList();
   }
 
   Future<void> updateRecommendedPlaylists() async {
