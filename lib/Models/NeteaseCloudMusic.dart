@@ -24,10 +24,12 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   bool get loggedin => _loggedin;
 
   Dio dio = Dio();
-  Future<PersistCookieJar> cookieJar;
+  // Future<PersistCookieJar> cookieJar;
+  Future<SharedPreferences> cookies;
 
   NeteaseCloudMusicModel() {
-    cookieJar = initCookieManager();
+    // cookieJar = initCookieManager();
+    cookies = SharedPreferences.getInstance();
     autoLogin();
   }
 
@@ -49,13 +51,16 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<bool> hasCookie() async {
     var result = false;
-    for (var item in (await cookieJar).domains) {
-      for (var entry in item.entries) {
-        print(entry.key);
-        if (entry.key == NeteaseCloudMusicConfig.hostname) {
-          result = true;
-        }
-      }
+    // for (var item in (// await cookieJar).domains) {
+    //   for (var entry in item.entries) {
+    //     print(entry.key);
+    //     if (entry.key == NeteaseCloudMusicConfig.hostname) {
+    //       result = true;
+    //     }
+    //   }
+    // }
+    if ((await cookies).getString("cookie") != null) {
+      result = true;
     }
     return result;
   }
@@ -90,11 +95,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<bool> loginWithPhonePwd(String phone, String pwd) async {
     loginInProgress = true;
-    await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.cellphoneLoginUrl;
-    (await cookieJar).delete(Uri.parse(NeteaseCloudMusicConfig.rootUrl));
-    (await cookieJar).deleteAll();
     Response<Map> response = await dio.get(
       url,
       queryParameters: {
@@ -111,8 +114,6 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     );
     if (response.statusCode == 200) {
       var jsonResponse = response.data;
-      print(jsonResponse);
-
       bool success = jsonResponse["code"] == 200;
       if (success) {
         var account = jsonResponse["account"];
@@ -122,11 +123,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
           loginInProgress = false;
           return false;
         }
-        // (await cookieJar).saveFromResponse(
-        //     Uri.parse(NeteaseCloudMusicConfig.rootUrl),
-        //     [Cookie.fromSetCookieValue(jsonResponse["cookie"])]);
-        // print((await cookieJar)
-        //     .loadForRequest(Uri.parse(NeteaseCloudMusicConfig.rootUrl)));
+        (await cookies).setString("cookie", jsonResponse["cookie"]);
         var uid = account["id"];
         var username = jsonResponse["profile"]["nickname"];
         NeteaseCloudMusicConfig.uid = uid;
@@ -144,7 +141,6 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<bool> getCaptcha(String phone) async {
-    await cookieJar;
     var url = NeteaseCloudMusicConfig.sendCaptchaUrl;
     Response<Map> response = await dio.get(
       url,
@@ -168,7 +164,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<bool> loginWithPhoneCaptcha(String phone, String captcha) async {
     loginInProgress = true;
-    await cookieJar;
+    // // await cookieJar;
     var cookie = await hasCookie();
     if (cookie) {
       var refresh = await refreshLogin();
@@ -203,7 +199,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
           return false;
         }
         var uid = account["id"];
+        var username = jsonResponse["profile"]["nickname"];
         NeteaseCloudMusicConfig.uid = uid;
+        NeteaseCloudMusicConfig.username = username;
         print("Login uid: " + NeteaseCloudMusicConfig.uid.toString());
         loggedin = true;
       } else {
@@ -219,7 +217,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<String> loginWithQR() async {
     loginInProgress = true;
-    await cookieJar;
+    // // await cookieJar;
     var cookie = await hasCookie();
     if (cookie) {
       var refresh = await refreshLogin();
@@ -292,10 +290,11 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<void> qrLoginStatusCheck(String key) async {
     var status = 801;
+    Response<Map> response;
     while (status != 800) {
       Future.delayed(Duration(milliseconds: 500));
       var url = NeteaseCloudMusicConfig.qrStatusUrl;
-      Response<Map> response = await dio.get(
+      response = await dio.get(
         url,
         queryParameters: {
           "key": key,
@@ -320,16 +319,24 @@ class NeteaseCloudMusicModel with ChangeNotifier {
       }
     }
     print('login successfull');
+    var uid = response.data["account"]["id"];
+    var username = response.data["profile"]["nickname"];
+    NeteaseCloudMusicConfig.uid = uid;
+    NeteaseCloudMusicConfig.username = username;
     loggedin = true;
     return;
   }
 
   Future<bool> loginStatus() async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.loginStatusUrl;
     Response response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -365,13 +372,17 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<bool> refreshLogin() async {
     print("refreshLogin");
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url =
         NeteaseCloudMusicConfig.refreshLoginUrl + "?timestamp=" + t.toString();
-    // (await cookieJar).loadForRequest(Uri.parse(url));
+    // (// await cookieJar).loadForRequest(Uri.parse(url));
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -396,7 +407,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<bool> logout() async {
-    await cookieJar;
+    // await cookieJar;
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.logoutUrl + "?timestamp=" + t.toString();
     Response<Map> response = await dio.get(
@@ -425,7 +436,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<List<PlaylistPreview>> fetchUserPlaylists() async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -441,6 +453,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     var url = NeteaseCloudMusicConfig.userPlaylistsUrl;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -480,10 +495,14 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<Playlist> fetchPlaylistDetail(String id) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var url = NeteaseCloudMusicConfig.playlistDetailUrl + id;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -541,7 +560,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<Map<String, String>> parseSongsUrl(List<String> ids) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var url = NeteaseCloudMusicConfig.songUrlUrl;
     for (var i = 0; i < ids.length; i++) {
       url += ids[i];
@@ -551,6 +571,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     }
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -590,7 +613,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<List<Song>> fetchSongsDetail(List<String> ids) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var url = NeteaseCloudMusicConfig.songDetailUrl;
     for (var i = 0; i < ids.length; i++) {
       url += ids[i];
@@ -600,6 +624,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     }
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -653,10 +680,14 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<bool> checkSongAvailability(String id) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var url = NeteaseCloudMusicConfig.checkAvailabilityUrl + id;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -680,7 +711,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<List<PlaylistPreview>> fetchDailyRecommendedPlaylists() async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -690,9 +722,12 @@ class NeteaseCloudMusicModel with ChangeNotifier {
       });
     }
     var url = NeteaseCloudMusicConfig.fetchDailyRecommendedPlaylistsUrl;
-    // print((await cookieJar).loadForRequest(Uri.parse(url)));
+    // print((// await cookieJar).loadForRequest(Uri.parse(url)));
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -734,7 +769,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<List<Song>> fetchDailyRecommendedSongs() async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -746,6 +782,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     var url = NeteaseCloudMusicConfig.fetchDailyRecommendedSongsUrl;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -795,7 +834,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<List<Song>> fetchPersonalFM() async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -807,6 +847,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     var url = NeteaseCloudMusicConfig.fetchPersonalFMUrl;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -861,7 +904,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<bool> likeSong(String id, {bool like}) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -877,6 +921,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     }
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -899,7 +946,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<List<String>> fetchUserLikelist() async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     if (NeteaseCloudMusicConfig.uid == "") {
       return [];
     }
@@ -914,6 +962,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     var url = NeteaseCloudMusicConfig.fetchUserLikelistUrl;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -948,7 +999,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   // Login
   Future<List<PlaylistPreview>> fetchRecommendedPlaylists({int limit}) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -963,6 +1015,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     }
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -1005,7 +1060,8 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   // Login
   Future<List<Song>> intelligenceMode(String songId, String playlistId,
       {String startId}) async {
-    await cookieJar;
+    // await cookieJar;
+    var cookie = (await cookies).getString("cookie");
     var retryCount = 0;
     if (!loggedin) {
       await Future.doWhile(() {
@@ -1022,6 +1078,9 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     }
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "cookie": cookie,
+      },
       options: Options(
         headers: {
           "xhrFields": {
