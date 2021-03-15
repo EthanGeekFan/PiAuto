@@ -61,10 +61,12 @@ class _BasicInformationWidgetState extends State<BasicInformationWidget> {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10.0),
-          color: Colors.white,
+          // color: Colors.white,
+          color: Theme.of(context).canvasColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey[300],
+              // color: Colors.grey[300],
+              color: Theme.of(context).shadowColor,
               blurRadius: 10.0,
               spreadRadius: 5.0,
             )

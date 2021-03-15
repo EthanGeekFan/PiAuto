@@ -41,7 +41,7 @@ class _PhoneLoginWidgetState extends State<PhoneLoginWidget> {
                 controller: _phoneController,
                 decoration: BoxDecoration(
                   border: Border.fromBorderSide(BorderSide.none),
-                  color: Colors.grey[200],
+                  color: Theme.of(context).shadowColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 maxLength: 11,
@@ -77,7 +77,7 @@ class _PhoneLoginWidgetState extends State<PhoneLoginWidget> {
                 controller: _passwordController,
                 decoration: BoxDecoration(
                   border: Border.fromBorderSide(BorderSide.none),
-                  color: Colors.grey[200],
+                  color: Theme.of(context).shadowColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 obscureText: true,

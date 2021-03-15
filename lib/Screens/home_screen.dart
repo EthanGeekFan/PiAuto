@@ -13,7 +13,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.grey[200],
+      // backgroundColor: Colors.grey[200],
+      backgroundColor: Theme.of(context).backgroundColor,
       body: SafeArea(
         child: Row(
           children: [

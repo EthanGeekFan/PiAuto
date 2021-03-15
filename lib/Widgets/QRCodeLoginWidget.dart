@@ -86,11 +86,11 @@ class _QRCodeLoginWidgetState extends State<QRCodeLoginWidget> {
               decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   // color: Color.fromRGBO(200, 200, 200, 1),
-                  color: Colors.white,
+                  color: Theme.of(context).canvasColor,
                   boxShadow: [
                     BoxShadow(
                       spreadRadius: 5,
-                      color: Colors.grey.withOpacity(0.3),
+                      color: Theme.of(context).shadowColor,
                       blurRadius: 10,
                     )
                   ]),

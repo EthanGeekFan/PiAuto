@@ -28,7 +28,8 @@ class _NeteaseLoginPageState extends State<NeteaseLoginPage> {
                   vertical: 15,
                 ),
                 child: CupertinoSlidingSegmentedControl<String>(
-                  thumbColor: Colors.white,
+                  thumbColor: Theme.of(context).canvasColor,
+                  backgroundColor: Theme.of(context).backgroundColor,
                   groupValue: _groupValue,
                   children: {
                     "qr": Text("QR Code"),

@@ -48,7 +48,7 @@ class _DestinationSearchWidgetState extends State<DestinationSearchWidget> {
                   margin: EdgeInsets.only(top: 10),
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).canvasColor,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(15),
                         topRight: Radius.circular(15),

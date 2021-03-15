@@ -18,11 +18,11 @@ class _PlaylistViewState extends State<PlaylistView> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).canvasColor,
         borderRadius: BorderRadius.circular(10.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey[300],
+            color: Theme.of(context).shadowColor,
             blurRadius: 10.0,
             spreadRadius: 5.0,
           ),
@@ -32,7 +32,7 @@ class _PlaylistViewState extends State<PlaylistView> {
         mainAxisSize: MainAxisSize.max,
         children: [
           Container(
-            color: Colors.white,
+            // color: Colors.white,
             child: Row(
               mainAxisSize: MainAxisSize.max,
               children: [

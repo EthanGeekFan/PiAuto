@@ -23,11 +23,11 @@ class _BrowserViewState extends State<BrowserView> {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).canvasColor,
         borderRadius: BorderRadius.circular(10.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey[300],
+            color: Theme.of(context).shadowColor,
             blurRadius: 10.0,
             spreadRadius: 5.0,
           ),
@@ -209,7 +209,7 @@ class ExplorePlaylists extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 0.0, sigmaY: 0.0),
             child: Container(
-              color: Colors.white.withOpacity(0.9),
+              color: Theme.of(context).canvasColor.withOpacity(0.9),
               child: Row(
                 mainAxisSize: MainAxisSize.max,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

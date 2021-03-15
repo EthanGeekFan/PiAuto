@@ -43,6 +43,7 @@ class MyNavigationViewController: UIViewController, AMapNaviDriveViewDelegate, A
         driveView.showBackupRoute = true
         driveView.autoZoomMapLevel = true
         driveView.showMoreButton = false
+        driveView.mapViewModeType = .dayNightAuto
         AMapNaviDriveManager.sharedInstance()
         
         self.view.addSubview(driveView)

@@ -64,11 +64,13 @@ class _AppleMusicPlayerCardState extends State<AppleMusicPlayerCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        // color: Colors.white,
+        color: Theme.of(context).canvasColor,
         borderRadius: BorderRadius.circular(10.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey[300],
+            // color: Colors.grey[300],
+            color: Theme.of(context).shadowColor,
             blurRadius: 10.0,
             spreadRadius: 5.0,
           ),
@@ -138,7 +140,7 @@ class _AppleMusicPlayerCardState extends State<AppleMusicPlayerCard> {
                                       boxShadow: <BoxShadow>[
                                         BoxShadow(
                                           offset: Offset(0, 10),
-                                          color: Colors.grey[200],
+                                          color: Theme.of(context).shadowColor,
                                           spreadRadius: 10.0,
                                           blurRadius: 20.0,
                                         ),
