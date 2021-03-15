@@ -9,7 +9,7 @@ class NeteaseLoginPage extends StatefulWidget {
 }
 
 class _NeteaseLoginPageState extends State<NeteaseLoginPage> {
-  String _groupValue = "phone";
+  String _groupValue = "qr";
 
   Widget phoneLoginWidget = PhoneLoginWidget();
   Widget qrCodeLoginWidget = QRCodeLoginWidget();
@@ -31,8 +31,8 @@ class _NeteaseLoginPageState extends State<NeteaseLoginPage> {
                   thumbColor: Colors.white,
                   groupValue: _groupValue,
                   children: {
-                    "phone": Text("Phone"),
                     "qr": Text("QR Code"),
+                    "phone": Text("Phone"),
                   },
                   onValueChanged: (value) {
                     print(value);

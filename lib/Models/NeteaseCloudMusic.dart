@@ -4,6 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pi_auto/Configurations/NeteaseCloudMusicConfig.dart';
@@ -13,8 +14,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class NeteaseCloudMusicModel with ChangeNotifier {
   bool _loggedin = false;
   bool loginInProgress = false;
-
   bool qrLoginInProgress = false;
+
+  String qrKey;
 
   set loggedin(bool value) {
     _loggedin = value;
@@ -51,14 +53,6 @@ class NeteaseCloudMusicModel with ChangeNotifier {
 
   Future<bool> hasCookie() async {
     var result = false;
-    // for (var item in (// await cookieJar).domains) {
-    //   for (var entry in item.entries) {
-    //     print(entry.key);
-    //     if (entry.key == NeteaseCloudMusicConfig.hostname) {
-    //       result = true;
-    //     }
-    //   }
-    // }
     if ((await cookies).getString("cookie") != null) {
       result = true;
     }
@@ -218,17 +212,20 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   Future<String> loginWithQR() async {
     loginInProgress = true;
     // // await cookieJar;
-    var cookie = await hasCookie();
-    if (cookie) {
-      var refresh = await refreshLogin();
-      loginInProgress = false;
-    }
+    // var cookie = await hasCookie();
+    // if (cookie) {
+    //   var refresh = await refreshLogin();
+    //   loginInProgress = false;
+    // }
 
     // Generate QR Key:
     String key = "";
     var url = NeteaseCloudMusicConfig.qrKeyGenUrl;
     Response<Map> response = await dio.get(
       url,
+      queryParameters: {
+        "timestamp": DateTime.now().millisecondsSinceEpoch,
+      },
       options: Options(
         headers: {
           "xhrFields": {
@@ -242,6 +239,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
       bool success = jsonResponse["code"] == 200;
       if (success) {
         key = jsonResponse["unikey"];
+        qrKey = key;
       } else {
         print("qrKeyGen not successful");
         loginInProgress = false;
@@ -261,6 +259,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
       queryParameters: {
         "key": key,
         "qrimg": true,
+        "timestamp": DateTime.now().millisecondsSinceEpoch,
       },
       options: Options(
         headers: {
@@ -284,47 +283,92 @@ class NeteaseCloudMusicModel with ChangeNotifier {
     }
     loginInProgress = false;
     qrLoginInProgress = true;
-    qrLoginStatusCheck(key).then((value) => qrLoginInProgress = false);
+    // qrLoginStatusCheck(key).then((value) => qrLoginInProgress = false);
     return base64QR;
   }
 
-  Future<void> qrLoginStatusCheck(String key) async {
+  Future<QRStatus> qrLoginStatusCheck() async {
     var status = 801;
     Response<Map> response;
-    while (status != 800) {
-      Future.delayed(Duration(milliseconds: 500));
-      var url = NeteaseCloudMusicConfig.qrStatusUrl;
-      response = await dio.get(
-        url,
-        queryParameters: {
-          "key": key,
-        },
-        options: Options(
-          headers: {
-            "xhrFields": {
-              "withCredentials": true,
-            },
+    // while (status != 800) {
+    //   Future.delayed(Duration(milliseconds: 500));
+    var url = NeteaseCloudMusicConfig.qrStatusUrl;
+    response = await dio.get(
+      url,
+      queryParameters: {
+        "key": qrKey,
+        "timestamp": DateTime.now().millisecondsSinceEpoch,
+      },
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
           },
-        ),
-      );
-      if (response.statusCode == 200) {
-        var jsonResponse = response.data;
-        status = jsonResponse["code"] as int;
-        if (status == 803) {
-          break;
-        }
-      } else {
-        print('Request failed with status: ${response.statusCode}.');
-        return;
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      var jsonResponse = response.data;
+      status = jsonResponse["code"] as int;
+      switch (status) {
+        case 800:
+          return QRStatus.expired;
+        case 801:
+          return QRStatus.waitingForScan;
+        case 802:
+          return QRStatus.waitingForConfirmation;
+        case 803:
+          print('login successfull');
+          (await cookies).setString("cookie", jsonResponse['cookie']);
+          await fetchUserInfo();
+          loggedin = true;
+          return QRStatus.success;
+        default:
+          return QRStatus.error;
       }
+    } else {
+      print('Request failed with status: ${response.statusCode}.');
+      return QRStatus.error;
     }
-    print('login successfull');
-    var uid = response.data["account"]["id"];
-    var username = response.data["profile"]["nickname"];
-    NeteaseCloudMusicConfig.uid = uid;
-    NeteaseCloudMusicConfig.username = username;
-    loggedin = true;
-    return;
+    // }
+  }
+
+  Future<bool> fetchUserInfo() async {
+    var cookie = (await cookies).getString("cookie");
+    var url = NeteaseCloudMusicConfig.userInfoUrl;
+    Response response = await dio.get(
+      url,
+      queryParameters: {
+        "cookie": cookie,
+        "timestamp": DateTime.now().millisecondsSinceEpoch,
+      },
+      options: Options(
+        headers: {
+          "xhrFields": {
+            "withCredentials": true,
+          },
+        },
+      ),
+    );
+    if (response.statusCode == 200) {
+      var jsonResponse = response.data;
+      bool success = jsonResponse["code"] == 200;
+      if (success) {
+        var uid = jsonResponse["account"]["id"];
+        var username = jsonResponse["profile"]["nickname"];
+        NeteaseCloudMusicConfig.uid = uid;
+        NeteaseCloudMusicConfig.username = username;
+        print("User: ");
+        print("uid: $uid");
+        print("username: $username");
+        return true;
+      } else {
+        print("not logged in");
+      }
+    } else {
+      print('Request failed with status: ${response.statusCode}.');
+    }
+    return false;
   }
 
   Future<bool> loginStatus() async {
@@ -407,7 +451,6 @@ class NeteaseCloudMusicModel with ChangeNotifier {
   }
 
   Future<bool> logout() async {
-    // await cookieJar;
     int t = new DateTime.now().millisecondsSinceEpoch;
     var url = NeteaseCloudMusicConfig.logoutUrl + "?timestamp=" + t.toString();
     Response<Map> response = await dio.get(
@@ -426,6 +469,7 @@ class NeteaseCloudMusicModel with ChangeNotifier {
       if (success) {
         NeteaseCloudMusicConfig.uid = null;
         loggedin = false;
+        (await cookies).setString('cookie', null);
         return true;
       }
     } else {
@@ -1126,6 +1170,33 @@ class NeteaseCloudMusicModel with ChangeNotifier {
       print('Request failed with status: ${response.statusCode}.');
     }
     return null;
+  }
+}
+
+enum QRStatus {
+  expired,
+  waitingForScan,
+  waitingForConfirmation,
+  success,
+  error,
+}
+
+extension ParseString on QRStatus {
+  String toStatusString() {
+    switch (this) {
+      case QRStatus.expired:
+        return "Expired";
+      case QRStatus.waitingForScan:
+        return "Scan this code in mobile app";
+      case QRStatus.waitingForConfirmation:
+        return "Waiting for user confirmation...";
+      case QRStatus.success:
+        return "Authorization successful! ";
+      case QRStatus.error:
+        return "Something wrong...";
+      default:
+        return "Loading authorization code...";
+    }
   }
 }
 

@@ -34,6 +34,8 @@ class NeteaseCloudMusicConfig {
   static const String refreshLoginUrl = "http://$hostname:$port/login/refresh";
   static const String logoutUrl = "http://$hostname:$port/logout";
 
+  static const String userInfoUrl = "http://$hostname:$port/user/account";
+
   // login required
   static String get userPlaylistsUrl =>
       "http://$hostname:$port/user/playlist?uid=$uid";
