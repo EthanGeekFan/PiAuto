@@ -32,7 +32,6 @@ class _PlaylistViewState extends State<PlaylistView> {
         mainAxisSize: MainAxisSize.max,
         children: [
           Container(
-            // color: Colors.white,
             child: Row(
               mainAxisSize: MainAxisSize.max,
               children: [
@@ -42,28 +41,30 @@ class _PlaylistViewState extends State<PlaylistView> {
                     cardKey.currentState.toggleCard();
                   },
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(10.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Playing Next",
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Playing Next",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        "From Current Playlist",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.grey[600],
+                        Text(
+                          "From Current Playlist",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey[600],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 )
               ],

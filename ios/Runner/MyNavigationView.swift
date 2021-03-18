@@ -53,6 +53,7 @@ class MyNavigationViewController: UIViewController, AMapNaviDriveViewDelegate, A
        AMapNaviDriveManager.sharedInstance().delegate = self
        AMapNaviDriveManager.sharedInstance().allowsBackgroundLocationUpdates = true
        AMapNaviDriveManager.sharedInstance().pausesLocationUpdatesAutomatically = false
+        AMapNaviDriveManager.sharedInstance().isUseInternalTTS = true
        
        //将driveView添加为导航数据的Representative，使其可以接收到导航诱导数据
        AMapNaviDriveManager.sharedInstance().addDataRepresentative(driveView)
