@@ -19,7 +19,7 @@ class NeteaseCloudMusicConfig {
     prefs.then((value) => value.setString("username", val));
   }
 
-  static const String hostname = "ethan.local";
+  static const String hostname = "piauto.local";
   static const String port = "3000";
 
   static const String rootUrl = "http://$hostname:$port/";

@@ -129,6 +129,7 @@ class _AppleMusicPlayerCardState extends State<AppleMusicPlayerCard> {
                                               print(exception);
                                               return Container();
                                             },
+                                            fit: BoxFit.cover,
                                           )
                                         : Container(),
                                     height: 200,

@@ -115,6 +115,7 @@ class _PlaylistViewState extends State<PlaylistView> {
                                       item.artUri,
                                       errorBuilder: (context, _, __) =>
                                           Container(),
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
                                   SizedBox(
