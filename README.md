@@ -161,10 +161,6 @@ And select a device if there are multiple devices connected.
 
 This project is currently personal. If you are interested in contributing to this project, you are welcomed to contact me via email:
 ```
-1195767760@qq.com
-```
-or Tencent QQ:
-```
-1195767760
+yangyifan529@gmail.com
 ```
 
